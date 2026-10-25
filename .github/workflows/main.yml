@@ -1,0 +1,94 @@
+name: TaubenKey bauen
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*' ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  analysis-test:
+    name: Analyse-Engine testen
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: g++ -O2 -std=c++17 -Wall tests/analysis_test.cpp -o analysis_test && ./analysis_test
+
+  windows:
+    name: Windows (VST3 + Installer)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - run: pip install pillow
+      - name: Konfigurieren
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+      - name: Bauen
+        run: cmake --build build --config Release --target TaubenKey_VST3 --parallel
+      - name: VST3 finden
+        id: find
+        shell: pwsh
+        run: |
+          $d = Get-ChildItem -Recurse -Directory -Filter TaubenKey.vst3 build | Select-Object -First 1
+          if (-not $d) { throw "TaubenKey.vst3 nicht gefunden" }
+          "dir=$($d.FullName)" >> $env:GITHUB_OUTPUT
+      - name: Installer-Artwork
+        run: python installer/make_art.py
+      - name: Inno Setup
+        run: choco install innosetup -y --no-progress
+      - name: Installer bauen
+        shell: pwsh
+        run: |
+          $ver = "${{ github.ref_type == 'tag' && github.ref_name || '1.0.0' }}".TrimStart('v')
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "/DVst3Dir=${{ steps.find.outputs.dir }}" "/DAppVersion=$ver" installer\TaubenKey.iss
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TaubenKey-Windows-Installer
+          path: dist/*.exe
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TaubenKey-Windows-VST3-roh
+          path: ${{ steps.find.outputs.dir }}
+
+  macos:
+    name: macOS (VST3 + pkg)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - run: pip install pillow
+      - name: Konfigurieren
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64"
+      - name: Bauen
+        run: cmake --build build --config Release --target TaubenKey_VST3 --parallel 4
+      - name: Signieren (ad-hoc) und pkg bauen
+        run: |
+          VST3=$(find build -type d -name TaubenKey.vst3 | head -1)
+          [ -n "$VST3" ] || { echo "TaubenKey.vst3 nicht gefunden"; exit 1; }
+          codesign --force --deep -s - "$VST3"
+          python installer/make_art.py
+          mkdir -p dist pkgroot/Library/Audio/Plug-Ins/VST3 pkgbuild
+          cp -R "$VST3" pkgroot/Library/Audio/Plug-Ins/VST3/
+          pkgbuild --root pkgroot --identifier de.taubenopa.taubenkey.vst3 --version 1.0.0 pkgbuild/TaubenKey-component.pkg
+          productbuild --distribution installer/macos/distribution.xml \
+                       --resources installer/macos/resources \
+                       --package-path pkgbuild dist/TaubenKey-macOS.pkg
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TaubenKey-macOS-Installer
+          path: dist/*.pkg
+
+  release:
+    name: Release (nur bei Tag v*)
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [ windows, macos ]
+    runs-on: ubuntu-latest
+    permissions: { contents: write }
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { pattern: TaubenKey-*-Installer, merge-multiple: true, path: dist }
+      - uses: softprops/action-gh-release@v2
+        with: { files: dist/* }
