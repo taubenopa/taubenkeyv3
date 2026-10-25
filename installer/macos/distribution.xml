@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<installer-gui-script minSpecVersion="2">
+    <title>TaubenKey</title>
+    <organization>de.taubenopa</organization>
+    <background file="background.png" alignment="bottomleft" scaling="proportional"/>
+    <background-darkAqua file="background.png" alignment="bottomleft" scaling="proportional"/>
+    <welcome file="welcome.html" mime-type="text/html"/>
+    <conclusion file="conclusion.html" mime-type="text/html"/>
+    <options customize="never" require-scripts="false" hostArchitectures="arm64,x86_64"/>
+    <domains enable_anywhere="false" enable_currentUserHome="false" enable_localSystem="true"/>
+    <choices-outline>
+        <line choice="default">
+            <line choice="de.taubenopa.taubenkey.vst3"/>
+        </line>
+    </choices-outline>
+    <choice id="default"/>
+    <choice id="de.taubenopa.taubenkey.vst3" visible="false">
+        <pkg-ref id="de.taubenopa.taubenkey.vst3"/>
+    </choice>
+    <pkg-ref id="de.taubenopa.taubenkey.vst3" version="1.0.0" onConclusion="none">TaubenKey-component.pkg</pkg-ref>
+</installer-gui-script>

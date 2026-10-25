@@ -1,0 +1,10 @@
+TaubenKey von taubenopa
+=======================
+VST3-Plugin: erkennt Tonart (Audio oder MIDI), Stimmung (Cent-Abweichung) und BPM.
+
+Installiert nach:   C:\Program Files\Common Files\VST3\TaubenKey.vst3
+Deinstallieren:     Windows-Einstellungen > Apps > "TaubenKey (Taube verjagen)"
+
+Tipp: Mindestens 4 Sekunden Audio abspielen. Je laenger das Gedaechtnis-Fenster,
+desto stabiler die Tonart. Das Klavier im Plugin ist klickbar (Gurr-Ton).
+Gurr.
